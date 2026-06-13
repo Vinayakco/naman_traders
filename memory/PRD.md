@@ -30,3 +30,10 @@ Build website + app for Naman Traders billing: auto-calculated bill form, PDF/pr
 
 ## Credentials
 See /app/memory/test_credentials.md
+
+## Update (Feb 2026 — Quintal/Unit Conversion)
+- Products now have a unit dropdown: quintal, kg, g, ton, lbs, bag, pcs, box, ltr, ml
+- Bill items now have a Unit dropdown alongside Qty (default = product unit)
+- Server-side conversion (UNIT_TO_GRAMS) ensures stock decrement is accurate even when sold unit ≠ stocked unit (e.g., stock in quintal, billed in kg)
+- Inline hint shows the converted stock impact (e.g., "= 0.50 quintal stock") while billing
+- Verified: 10 quintal stock → sold 2 quintal (8) → 50 kg (7.5) → 500 g (7.495) ✓

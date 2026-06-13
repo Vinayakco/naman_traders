@@ -22,12 +22,31 @@ import {
 import { Plus, Trash2, Save, ArrowLeft, Package, ChevronsUpDown, Check, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
+// Weight conversion: all values are factors to grams
+export const UNIT_TO_GRAMS = {
+  quintal: 100000,
+  ton: 1000000,
+  kg: 1000,
+  g: 1,
+  gram: 1,
+  lbs: 453.592,
+};
+export const WEIGHT_UNITS = ["quintal", "kg", "g", "ton", "lbs"];
+export const ALL_UNITS = ["quintal", "kg", "g", "ton", "lbs", "bag", "pcs", "box", "ltr", "ml"];
+
+export function convertQty(qty, fromU, toU) {
+  if (!fromU || !toU || fromU === toU) return Number(qty || 0);
+  const f = UNIT_TO_GRAMS[fromU];
+  const t = UNIT_TO_GRAMS[toU];
+  if (f == null || t == null) return Number(qty || 0);
+  return (Number(qty || 0) * f) / t;
+}
+
 const emptyItem = () => ({
   description: "",
   quantity: 1,
   rate: 0,
-  weight: "",
-  weight_unit: "kg",
+  unit: "quintal",
   product_id: null,
 });
 
@@ -61,7 +80,7 @@ export default function CreateBill() {
     setItems((prev) =>
       prev.map((it, i) =>
         i === idx
-          ? { ...it, description: product.name, rate: product.rate, product_id: product.id }
+          ? { ...it, description: product.name, rate: product.rate, product_id: product.id, unit: product.unit || it.unit }
           : it
       )
     );
@@ -88,13 +107,16 @@ export default function CreateBill() {
     const validItems = items.filter((it) => it.description.trim() && Number(it.quantity) > 0);
     if (validItems.length === 0) return toast.error("Add at least one item");
 
-    // Stock check
+    // Stock check (convert sold qty to product unit first)
     for (const it of validItems) {
       if (it.product_id) {
         const p = products.find((x) => x.id === it.product_id);
-        if (p && Number(it.quantity) > p.stock) {
-          if (!window.confirm(`"${p.name}" stock is ${p.stock} ${p.unit}. You are billing ${it.quantity}. Continue anyway?`))
-            return;
+        if (p) {
+          const deductInProductUnit = convertQty(it.quantity, it.unit, p.unit);
+          if (deductInProductUnit > p.stock) {
+            if (!window.confirm(`"${p.name}" stock is ${p.stock} ${p.unit}. You are billing ${deductInProductUnit.toFixed(2)} ${p.unit}. Continue anyway?`))
+              return;
+          }
         }
       }
     }
@@ -111,9 +133,8 @@ export default function CreateBill() {
           quantity: Number(it.quantity),
           rate: Number(it.rate),
           amount: Number(it.quantity) * Number(it.rate),
+          unit: it.unit || null,
           product_id: it.product_id || null,
-          weight: it.weight ? Number(it.weight) : null,
-          weight_unit: it.weight ? it.weight_unit : null,
         })),
         gst_percent: Number(gstPercent || 0),
         notes,
@@ -211,7 +232,22 @@ export default function CreateBill() {
               {items.map((it, idx) => {
                 const amount = Number(it.quantity || 0) * Number(it.rate || 0);
                 const linkedProduct = it.product_id ? products.find((p) => p.id === it.product_id) : null;
-                const stockWarn = linkedProduct && Number(it.quantity) > linkedProduct.stock;
+
+                let deductInProductUnit = null;
+                let stockWarn = false;
+                let convertedHint = null;
+                if (linkedProduct) {
+                  deductInProductUnit = convertQty(Number(it.quantity || 0), it.unit, linkedProduct.unit);
+                  stockWarn = deductInProductUnit > linkedProduct.stock;
+                  if (it.unit !== linkedProduct.unit) {
+                    convertedHint = `= ${deductInProductUnit.toFixed(2)} ${linkedProduct.unit} stock`;
+                  }
+                } else if (it.unit && WEIGHT_UNITS.includes(it.unit) && it.unit !== "kg") {
+                  // Show kg equivalent for clarity
+                  const kg = convertQty(Number(it.quantity || 0), it.unit, "kg");
+                  if (kg > 0) convertedHint = `≈ ${kg.toFixed(2)} kg`;
+                }
+
                 return (
                   <div key={idx} className="border border-zinc-200 rounded p-4 space-y-3" data-testid={`item-row-${idx}`}>
                     <div className="flex items-center justify-between gap-2">
@@ -219,11 +255,11 @@ export default function CreateBill() {
                         <PopoverTrigger asChild>
                           <Button variant="outline" size="sm" className="text-xs h-8" data-testid={`pick-product-${idx}`}>
                             <Package className="h-3 w-3 mr-1" />
-                            {linkedProduct ? `Linked: ${linkedProduct.name}` : "Pick from products (optional)"}
+                            {linkedProduct ? `Linked: ${linkedProduct.name} (Stock: ${linkedProduct.stock} ${linkedProduct.unit})` : "Pick from products (optional)"}
                             <ChevronsUpDown className="h-3 w-3 ml-1" />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-80 p-0" align="start">
+                        <PopoverContent className="w-96 p-0" align="start">
                           <Command>
                             <CommandInput placeholder="Search products..." />
                             <CommandList>
@@ -234,7 +270,7 @@ export default function CreateBill() {
                                     <Check className={`h-4 w-4 mr-2 ${linkedProduct?.id === p.id ? "opacity-100" : "opacity-0"}`} />
                                     <div className="flex flex-col flex-1">
                                       <span className="font-medium">{p.name}</span>
-                                      <span className="text-xs text-zinc-500">{formatINR(p.rate)} / {p.unit} · Stock: {p.stock}</span>
+                                      <span className="text-xs text-zinc-500">{formatINR(p.rate)} / {p.unit} · Stock: {p.stock} {p.unit}</span>
                                     </div>
                                   </CommandItem>
                                 ))}
@@ -259,38 +295,43 @@ export default function CreateBill() {
                     </div>
 
                     <div className="grid grid-cols-12 gap-2 items-end">
-                      <div className="col-span-12 md:col-span-5 space-y-1">
+                      <div className="col-span-12 md:col-span-4 space-y-1">
                         <Label className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Description</Label>
-                        <Input placeholder="Item description" value={it.description} onChange={(e) => updateItem(idx, "description", e.target.value)} data-testid={`item-desc-${idx}`} />
+                        <Input placeholder="e.g., Potato" value={it.description} onChange={(e) => updateItem(idx, "description", e.target.value)} data-testid={`item-desc-${idx}`} />
                       </div>
                       <div className="col-span-4 md:col-span-2 space-y-1">
                         <Label className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Qty</Label>
                         <Input type="number" min="0" step="any" value={it.quantity} onChange={(e) => updateItem(idx, "quantity", e.target.value)} data-testid={`item-qty-${idx}`} className="text-center" />
                       </div>
                       <div className="col-span-4 md:col-span-2 space-y-1">
-                        <Label className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Rate</Label>
+                        <Label className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Unit</Label>
+                        <select
+                          value={it.unit}
+                          onChange={(e) => updateItem(idx, "unit", e.target.value)}
+                          data-testid={`item-unit-${idx}`}
+                          className="w-full h-10 border border-zinc-200 rounded px-2 text-sm bg-white"
+                        >
+                          {ALL_UNITS.map((u) => (
+                            <option key={u} value={u}>{u}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-span-6 md:col-span-2 space-y-1">
+                        <Label className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Rate / unit</Label>
                         <Input type="number" min="0" step="any" value={it.rate} onChange={(e) => updateItem(idx, "rate", e.target.value)} data-testid={`item-rate-${idx}`} className="text-right" />
                       </div>
-                      <div className="col-span-4 md:col-span-3 space-y-1">
+                      <div className="col-span-6 md:col-span-2 space-y-1">
                         <Label className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Amount</Label>
                         <div className="h-10 flex items-center justify-end px-3 bg-zinc-50 border border-zinc-200 rounded font-mono font-semibold" data-testid={`item-amount-${idx}`}>{formatINR(amount)}</div>
                       </div>
-                      <div className="col-span-7 md:col-span-3 space-y-1">
-                        <Label className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Weight (optional)</Label>
-                        <Input type="number" min="0" step="any" placeholder="e.g., 25" value={it.weight} onChange={(e) => updateItem(idx, "weight", e.target.value)} data-testid={`item-weight-${idx}`} />
-                      </div>
-                      <div className="col-span-5 md:col-span-2 space-y-1">
-                        <Label className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Unit</Label>
-                        <select value={it.weight_unit} onChange={(e) => updateItem(idx, "weight_unit", e.target.value)} className="w-full h-10 border border-zinc-200 rounded px-2 text-sm" data-testid={`item-weight-unit-${idx}`}>
-                          <option value="kg">kg</option>
-                          <option value="g">g</option>
-                          <option value="ton">ton</option>
-                          <option value="lbs">lbs</option>
-                          <option value="ltr">ltr</option>
-                          <option value="ml">ml</option>
-                        </select>
-                      </div>
                     </div>
+
+                    {convertedHint && (
+                      <div className="text-xs text-zinc-500 flex items-center gap-1">
+                        <span className="inline-block h-1 w-1 rounded-full bg-blue-400" />
+                        {convertedHint}
+                      </div>
+                    )}
 
                     {stockWarn && (
                       <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded">

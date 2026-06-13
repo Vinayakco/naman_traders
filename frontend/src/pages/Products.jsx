@@ -31,7 +31,8 @@ import {
   CommandList,
 } from "../components/ui/command";
 
-const emptyForm = { name: "", unit: "pcs", rate: 0, stock: 0, low_stock_threshold: 5, notes: "" };
+const emptyForm = { name: "", unit: "quintal", rate: 0, stock: 0, low_stock_threshold: 5, notes: "" };
+const PRODUCT_UNITS = ["quintal", "kg", "g", "ton", "lbs", "bag", "pcs", "box", "ltr", "ml"];
 
 export default function Products() {
   const [products, setProducts] = useState([]);
@@ -254,7 +255,16 @@ export default function Products() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Unit</Label>
-                <Input data-testid="product-unit-input" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="bag, pcs, kg" />
+                <select
+                  data-testid="product-unit-input"
+                  value={form.unit}
+                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                  className="w-full h-10 border border-zinc-200 rounded px-3 text-sm bg-white"
+                >
+                  {PRODUCT_UNITS.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-2">
                 <Label>Default rate</Label>

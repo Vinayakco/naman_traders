@@ -58,6 +58,9 @@ class BillItem(BaseModel):
     rate: float
     amount: float
     product_id: Optional[str] = None
+    unit: Optional[str] = None
+    weight: Optional[float] = None
+    weight_unit: Optional[str] = None
 
 
 # ---- Product / Stock models ----
@@ -201,6 +204,28 @@ def calc_totals(items: List[BillItem], gst_percent: float):
     return round(subtotal, 2), gst_amount, total
 
 
+# Conversion factors to grams (base unit for weight conversions)
+UNIT_TO_GRAMS = {
+    "quintal": 100000.0,
+    "ton": 1000000.0,
+    "kg": 1000.0,
+    "g": 1.0,
+    "gram": 1.0,
+    "lbs": 453.592,
+}
+
+
+def convert_qty(qty: float, from_unit: Optional[str], to_unit: Optional[str]) -> float:
+    """Convert qty from one unit to another. If units are not weight-compatible, returns qty unchanged."""
+    if not from_unit or not to_unit or from_unit == to_unit:
+        return qty
+    f = UNIT_TO_GRAMS.get(from_unit.lower())
+    t = UNIT_TO_GRAMS.get(to_unit.lower())
+    if f is None or t is None:
+        return qty
+    return round(qty * f / t, 6)
+
+
 async def next_invoice_number() -> str:
     # Find current max invoice number
     counter = await db.counters.find_one_and_update(
@@ -232,7 +257,10 @@ async def create_bill(payload: BillCreate, user=Depends(require_auth)):
             quantity=it.quantity,
             rate=it.rate,
             amount=amt,
+            unit=it.unit,
             product_id=it.product_id,
+            weight=it.weight,
+            weight_unit=it.weight_unit,
         ))
     subtotal, gst_amount, total = calc_totals(normalized_items, payload.gst_percent)
 
@@ -255,23 +283,28 @@ async def create_bill(payload: BillCreate, user=Depends(require_auth)):
     doc = bill.model_dump()
     await db.bills.insert_one(doc)
 
-    # Decrement stock for items linked to products
+    # Decrement stock for items linked to products (with unit conversion)
     now_iso = datetime.now(timezone.utc).isoformat()
     for it in normalized_items:
         if it.product_id:
-            await db.products.update_one(
-                {"id": it.product_id},
-                {"$inc": {"stock": -it.quantity}, "$set": {"updated_at": now_iso}},
-            )
-            await db.stock_movements.insert_one({
-                "id": str(uuid.uuid4()),
-                "product_id": it.product_id,
-                "type": "sale",
-                "quantity": -it.quantity,
-                "note": f"Sold via {invoice_number}",
-                "bill_id": bill.id,
-                "created_at": now_iso,
-            })
+            product = await db.products.find_one({"id": it.product_id}, {"_id": 0})
+            if product:
+                product_unit = product.get("unit") or "pcs"
+                sold_unit = it.unit or product_unit
+                decrement = convert_qty(it.quantity, sold_unit, product_unit)
+                await db.products.update_one(
+                    {"id": it.product_id},
+                    {"$inc": {"stock": -decrement}, "$set": {"updated_at": now_iso}},
+                )
+                await db.stock_movements.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "product_id": it.product_id,
+                    "type": "sale",
+                    "quantity": -decrement,
+                    "note": f"Sold via {invoice_number} ({it.quantity} {sold_unit})",
+                    "bill_id": bill.id,
+                    "created_at": now_iso,
+                })
 
     # Upsert customer record (auto-track all customers we've billed)
     if payload.customer_name.strip():
@@ -341,19 +374,24 @@ async def delete_bill(bill_id: str, user=Depends(require_auth)):
     for it in doc.get("items", []):
         pid = it.get("product_id")
         if pid:
-            await db.products.update_one(
-                {"id": pid},
-                {"$inc": {"stock": it.get("quantity", 0)}, "$set": {"updated_at": now_iso}},
-            )
-            await db.stock_movements.insert_one({
-                "id": str(uuid.uuid4()),
-                "product_id": pid,
-                "type": "reverse",
-                "quantity": it.get("quantity", 0),
-                "note": f"Reversed from deleted bill {doc.get('invoice_number')}",
-                "bill_id": bill_id,
-                "created_at": now_iso,
-            })
+            product = await db.products.find_one({"id": pid}, {"_id": 0})
+            if product:
+                product_unit = product.get("unit") or "pcs"
+                sold_unit = it.get("unit") or product_unit
+                restore = convert_qty(it.get("quantity", 0), sold_unit, product_unit)
+                await db.products.update_one(
+                    {"id": pid},
+                    {"$inc": {"stock": restore}, "$set": {"updated_at": now_iso}},
+                )
+                await db.stock_movements.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "product_id": pid,
+                    "type": "reverse",
+                    "quantity": restore,
+                    "note": f"Reversed from deleted bill {doc.get('invoice_number')}",
+                    "bill_id": bill_id,
+                    "created_at": now_iso,
+                })
     await db.bills.delete_one({"id": bill_id})
     return {"deleted": True}
 

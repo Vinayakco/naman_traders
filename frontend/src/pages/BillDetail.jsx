@@ -127,8 +127,7 @@ export default function BillDetail() {
               <thead>
                 <tr className="bg-blue-600 text-white">
                   <th className="text-left px-4 py-3 font-semibold uppercase text-xs tracking-wider">Description</th>
-                  <th className="text-center px-4 py-3 font-semibold uppercase text-xs tracking-wider w-24">Weight</th>
-                  <th className="text-center px-4 py-3 font-semibold uppercase text-xs tracking-wider w-16">Qty</th>
+                  <th className="text-center px-4 py-3 font-semibold uppercase text-xs tracking-wider w-32">Qty</th>
                   <th className="text-right px-4 py-3 font-semibold uppercase text-xs tracking-wider w-28">Rate</th>
                   <th className="text-right px-4 py-3 font-semibold uppercase text-xs tracking-wider w-28">Amount</th>
                 </tr>
@@ -137,9 +136,8 @@ export default function BillDetail() {
                 {bill.items.map((it, i) => (
                   <tr key={i} className="border-b border-zinc-200">
                     <td className="px-4 py-3 text-zinc-800">{it.description}</td>
-                    <td className="px-4 py-3 text-center font-mono text-xs">{it.weight ? `${it.weight} ${it.weight_unit || ""}` : "—"}</td>
-                    <td className="px-4 py-3 text-center font-mono">{it.quantity}</td>
-                    <td className="px-4 py-3 text-right font-mono">{formatINR(it.rate)}</td>
+                    <td className="px-4 py-3 text-center font-mono">{it.quantity} {it.unit || ""}</td>
+                    <td className="px-4 py-3 text-right font-mono">{formatINR(it.rate)}{it.unit ? `/${it.unit}` : ""}</td>
                     <td className="px-4 py-3 text-right font-mono font-semibold">{formatINR(it.amount)}</td>
                   </tr>
                 ))}
