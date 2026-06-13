@@ -15,8 +15,21 @@ import {
   DialogFooter,
   DialogDescription,
 } from "../components/ui/dialog";
-import { Plus, Package, PackagePlus, Pencil, Trash2, AlertTriangle, Search, History } from "lucide-react";
+import { Plus, Package, PackagePlus, Pencil, Trash2, AlertTriangle, Search, History, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "../components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "../components/ui/command";
 
 const emptyForm = { name: "", unit: "pcs", rate: 0, stock: 0, low_stock_threshold: 5, notes: "" };
 
@@ -32,6 +45,9 @@ export default function Products() {
   const [restockFor, setRestockFor] = useState(null);
   const [restockQty, setRestockQty] = useState(0);
   const [restockNote, setRestockNote] = useState("");
+  const [restockSupplier, setRestockSupplier] = useState(null);
+  const [suppliers, setSuppliers] = useState([]);
+  const [openSupplier, setOpenSupplier] = useState(false);
 
   const [historyFor, setHistoryFor] = useState(null);
   const [movements, setMovements] = useState([]);
@@ -56,6 +72,10 @@ export default function Products() {
       active = false;
     };
   }, [lowOnly]);
+
+  useEffect(() => {
+    api.get("/suppliers").then((r) => setSuppliers(r.data)).catch(() => {});
+  }, []);
 
   const openCreate = () => {
     setForm(emptyForm);
@@ -109,6 +129,7 @@ export default function Products() {
     setRestockFor(p);
     setRestockQty(0);
     setRestockNote("");
+    setRestockSupplier(null);
   };
 
   const submitRestock = async () => {
@@ -117,6 +138,7 @@ export default function Products() {
       await api.post(`/products/${restockFor.id}/restock`, {
         quantity: Number(restockQty),
         note: restockNote,
+        supplier_id: restockSupplier?.id || null,
       });
       toast.success(`Stock updated for ${restockFor.name}`);
       setRestockFor(null);
@@ -276,8 +298,40 @@ export default function Products() {
               <Input data-testid="restock-qty-input" type="number" step="any" value={restockQty} onChange={(e) => setRestockQty(e.target.value)} placeholder="e.g., 50" autoFocus />
             </div>
             <div className="space-y-2">
+              <Label>Supplier (optional)</Label>
+              <Popover open={openSupplier} onOpenChange={setOpenSupplier}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between font-normal" data-testid="restock-supplier-btn">
+                    {restockSupplier ? restockSupplier.name : "Select supplier"}
+                    <ChevronsUpDown className="h-3 w-3 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search suppliers..." />
+                    <CommandList>
+                      <CommandEmpty>No suppliers. Add some in Suppliers page.</CommandEmpty>
+                      <CommandGroup>
+                        {suppliers.map((s) => (
+                          <CommandItem key={s.id} onSelect={() => { setRestockSupplier(s); setOpenSupplier(false); }} value={s.name}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{s.name}</span>
+                              {s.phone && <span className="text-xs text-zinc-500">{s.phone}</span>}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {restockSupplier && (
+                <button onClick={() => setRestockSupplier(null)} className="text-xs text-zinc-500 hover:text-zinc-700">Clear supplier</button>
+              )}
+            </div>
+            <div className="space-y-2">
               <Label>Note</Label>
-              <Input data-testid="restock-note-input" value={restockNote} onChange={(e) => setRestockNote(e.target.value)} placeholder="Supplier name, batch info" />
+              <Input data-testid="restock-note-input" value={restockNote} onChange={(e) => setRestockNote(e.target.value)} placeholder="Batch info, invoice #, etc." />
             </div>
             <div className="bg-blue-50 border border-blue-100 rounded p-3 text-sm">
               <span className="text-zinc-600">New stock will be: </span>

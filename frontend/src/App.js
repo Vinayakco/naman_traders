@@ -9,6 +9,7 @@ import BillsList from "./pages/BillsList";
 import BillDetail from "./pages/BillDetail";
 import Analytics from "./pages/Analytics";
 import Products from "./pages/Products";
+import Contacts from "./pages/Contacts";
 
 function Protected({ children }) {
   const { status } = useAuth();
