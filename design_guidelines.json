@@ -1,0 +1,89 @@
+{
+  "theme": "light",
+  "archetype": "4 (Swiss & High-Contrast)",
+  "typography": {
+    "headings_font": "Outfit",
+    "body_font": "Manrope",
+    "hierarchy": {
+      "h1": "text-4xl tracking-tight font-semibold",
+      "h2": "text-2xl tracking-tight font-medium",
+      "h3": "text-xl tracking-tight font-medium",
+      "h4": "text-lg font-medium",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm",
+      "label": "text-xs uppercase tracking-[0.2em] font-semibold text-zinc-500"
+    }
+  },
+  "colors": {
+    "primary": "#2563EB", 
+    "primary_hover": "#1D4ED8",
+    "background": "#FAFAFA",
+    "surface": "#FFFFFF",
+    "border": "#E4E4E7",
+    "text_main": "#18181B",
+    "text_muted": "#71717A",
+    "success": "#16A34A",
+    "danger": "#DC2626"
+  },
+  "layout_and_spacing": {
+    "container_padding": "p-6 md:p-8",
+    "card_style": "bg-white border border-zinc-200 rounded-lg p-6",
+    "grid_system": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6",
+    "sidebar_width": "w-64"
+  },
+  "surfaces_and_micro_themes": {
+    "dashboard_cards": "Flat solid background, 1px border-zinc-200, no shadow by default, hover:-translate-y-1 hover:shadow-lg transition-all duration-200",
+    "header": "Solid background with a hard bottom border (border-zinc-200)",
+    "invoice_preview": "White background, blue-600 accents for headers and totals, structured table with border-b border-zinc-200, clean and professional."
+  },
+  "components": {
+    "icons": "lucide-react",
+    "forms": "Shadcn UI Input, Select, Checkbox. Use explicit labels. Data-testid on all inputs.",
+    "tables": "Shadcn UI Table. Use for Invoice List and Line Items. Hover states on rows.",
+    "charts": "Shadcn charts (recharts) for Dashboard growth and revenue.",
+    "buttons": "Shadcn UI Button. Primary buttons use blue-600. Add hover state explicitly."
+  },
+  "pages_and_views": {
+    "login": {
+      "layout": "Split screen or centered card. Use the abstract blue texture image on one side if split, or as subtle background.",
+      "features": "Simple password login form."
+    },
+    "dashboard": {
+      "layout": "Sidebar navigation. Top metrics cards (Total Revenue, Bill Count, etc) using Control Room Grid. Charts below. Recent bills table.",
+      "features": "Growth charts (day/week/month/year toggle), Top customers list."
+    },
+    "create_bill": {
+      "layout": "Two-column bento layout. Left/Main: Form for customer details and dynamic line items table. Right/Sidebar: Invoice totals, tax, and actions.",
+      "features": "Auto-calculation of line item amount (qty * rate). Auto-sum of subtotal, tax calculation, grand total. Save and Print/Share buttons."
+    },
+    "bills_list": {
+      "layout": "Full width table with filters at the top.",
+      "features": "Search by customer name/phone, date range picker, invoice number."
+    },
+    "bill_detail_preview": {
+      "layout": "A4 proportioned white card centered on gray background.",
+      "features": "Matches 'Blue And White Simple' reference. Print functionality (window.print), Share via WhatsApp link (wa.me)."
+    }
+  },
+  "image_urls": {
+    "login_background": {
+      "url": "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzZ8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGJsdWUlMjB0ZXh0dXJlfGVufDB8fHxibHVlfDE3ODEzMzE3MTZ8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Abstract blue background with wavy lines, use for login page aesthetic."
+    },
+    "empty_state_illustration": {
+      "url": "https://images.unsplash.com/photo-1642043175009-5997b3a078d8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzF8MHwxfHNlYXJjaHwzfHxvZmZpY2UlMjBkZXNrJTIwY2FsY3VsYXRvcnxlbnwwfHx8fDE3ODEzMzE3MTZ8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Calculator on papers, use for empty state in bills list."
+    }
+  },
+  "instructions_to_main_agent": [
+    "Install required fonts from Google Fonts: Outfit and Manrope.",
+    "Implement the Layout shell with a fixed Sidebar and a top header containing the user profile/logout.",
+    "For the 'Create Bill' form, build a dynamic table where users can add/remove rows. Use React Hook Form or similar for state management.",
+    "Implement automatic calculations: row.amount = row.qty * row.rate; subtotal = sum(row.amount); grandTotal = subtotal + (subtotal * gst / 100).",
+    "For the Invoice Preview, create a separate print-only stylesheet or use window.print() hiding everything except the invoice container. Use the reference blue accent.",
+    "For the WhatsApp share, construct the URL: https://wa.me/{phone}?text={encoded_message}.",
+    "CRITICAL: All interactive and key informational elements MUST include a data-testid attribute. e.g. data-testid='login-submit-button', data-testid='add-line-item-button'.",
+    "Use Shadcn UI components extensively but customize the border-radius to max 8px and use the defined blue primary color.",
+    "Make sure files have a .js/.jsx extension (no .tsx)."
+  ]
+}
