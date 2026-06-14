@@ -18,14 +18,13 @@ from pydantic import BaseModel, Field, ConfigDict
 
 
 # MongoDB connection
-mongo_url = os.environ.get('MONGO_URL', '')
+mongo_url = os.environ.get('MONGO_URL', 'mongodb+srv://vinayakoffical18_db_user:naman123@cluster0.nw2bn9y.mongodb.net/naman_traders')
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[os.environ.get('DB_NAME', 'naman_traders')]
 
 # JWT config
-JWT_SECRET = os.environ['JWT_SECRET']
-JWT_ALGORITHM = "HS256"
-JWT_EXPIRES_HOURS = 24 * 7  # 1 week
+JWT_SECRET = os.environ.get('JWT_SECRET', 'namantraders_secret_key_2024')
+OWNER_PASSWORD = os.environ.get('OWNER_PASSWORD', 'naman123')
 
 OWNER_PASSWORD = os.environ['OWNER_PASSWORD']
 
