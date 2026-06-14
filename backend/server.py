@@ -24,6 +24,7 @@ db = client[os.environ.get('DB_NAME', 'naman_traders')]
 
 # JWT config
 JWT_SECRET = os.environ.get('JWT_SECRET', 'namantraders_secret_key_2024')
+JWT_EXPIRES_HOURS = 24 * 7  # 1 week
 OWNER_PASSWORD = os.environ.get('OWNER_PASSWORD', 'naman123')
 
 OWNER_PASSWORD = os.environ.get('OWNER_PASSWORD', 'naman123')
